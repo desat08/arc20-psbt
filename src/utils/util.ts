@@ -1,0 +1,1 @@
+export const satToBtc = (sat: number) => sat / 100000000;
