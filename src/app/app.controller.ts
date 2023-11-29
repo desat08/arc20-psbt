@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { Arc20PsbtService } from '../arc20-psbt/arc20-psbt.service';
-import { OrderInfo, PsbtToSign } from '../arc20-psbt/arc20-psbt.dto';
+import {
+  OrderInfo,
+  PsbtToMerge,
+  PsbtToSign,
+} from '../arc20-psbt/arc20-psbt.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 
 @Controller('/api/v1')
@@ -20,10 +24,8 @@ export class AppController {
     return this.arc20PsbtService.generateUnsignedBuyerPsbt(orderInfo);
   }
 
-  @Get('/psbt/extract')
-  extractTxFromPsbts(
-    @Param('sellerPsbt') sellerPsbt: string,
-    @Param('buyerPsbt') buyerPsbt: string): string {
-    return this.arc20PsbtService.extractTxFromPSBTs(sellerPsbt, buyerPsbt);
+  @Post('/psbt/extract')
+  extractTxFromPsbts(@Body() psbtToMerge: PsbtToMerge): string {
+    return this.arc20PsbtService.extractTxFromPSBTs(psbtToMerge.sellerPsbt, psbtToMerge.buyerPsbt);
   }
 }

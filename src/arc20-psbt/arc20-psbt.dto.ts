@@ -16,40 +16,47 @@ export class Atomical extends Utxo {
 }
 
 export class UserInfo {
-  @ApiProperty()
+  @ApiProperty({name: 'public_key'})
   publicKey: string;
   @ApiProperty()
   address: string;
-  @ApiProperty()
+  @ApiProperty({name: 'receive_address'})
   receiveAddress: string;
-  @ApiProperty()
+  @ApiProperty({name: 'service_fee_rate'})
   serviceFeeRate: number;
-  @ApiProperty({required: false})
+  @ApiProperty({required: false, name: 'network_fee_rate'})
   networkFeeRate?: number;
 }
 
 export class OrderInfo {
-  @ApiProperty()
+  @ApiProperty({name: 'atomical_id'})
   atomicalId: string;
-  @ApiProperty()
+  @ApiProperty({name: 'unit_price'})
   unitPrice: number;
-  @ApiProperty({ type: () => [Atomical] })
+  @ApiProperty({ type: () => [Atomical], name: 'seller_atomicals' })
   sellerAtomicals: Atomical[];
-  @ApiProperty()
+  @ApiProperty({name: 'seller_info'})
   sellerInfo: UserInfo;
-  @ApiProperty({ type: () => [Utxo] , required: false})
+  @ApiProperty({ type: () => [Utxo] , required: false, name: 'buyer_utxos'})
   buyerUtxos?: Utxo[];
-  @ApiProperty({required: false})
+  @ApiProperty({required: false, name: 'buyer_info'})
   buyerInfo?: UserInfo;
-  @ApiProperty()
+  @ApiProperty({name: 'platform_receive_address'})
   platformReceiveAddress: string
 }
 
 export class PsbtToSign {
-  @ApiProperty()
+  @ApiProperty({name: 'psbt_base64'})
   psbtBase64: string;
-  @ApiProperty()
+  @ApiProperty({name: 'sighash_type'})
   sighashType: number;
   @ApiProperty({type: [Number]})
   index: number[];
+}
+
+export class PsbtToMerge {
+  @ApiProperty({name: 'seller_psbt'})
+  sellerPsbt: string;
+  @ApiProperty({name: 'buyer_psbt'})
+  buyerPsbt: string;
 }
