@@ -48,10 +48,14 @@ export class OrderInfo {
 export class PsbtToSign {
   @ApiProperty({name: 'psbt_base64'})
   psbtBase64: string;
+  @ApiProperty({type: () => [Atomical], name: 'sign_index'})
+  signIndex: SignIndex[];
+}
+
+export class SignIndex {
   @ApiProperty({name: 'sighash_type'})
   sighashType: number;
-  @ApiProperty({type: [Number]})
-  index: number[];
+  index: number
 }
 
 export class PsbtToMerge {

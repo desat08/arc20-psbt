@@ -1,5 +1,8 @@
 import { networks } from 'bitcoinjs-lib';
 import * as process from 'process';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 export const BITCOIN_RPC_HOST =
   process.env.BITCOIN_RPC_HOST || 'http://localhost';
@@ -16,7 +19,6 @@ export const DUMMY_UTXO_MIN_VALUE = Number(
 );
 
 export const BRC20_UTXO_VALUE = Number(546);
-export const PLATFORM_FEE_ADDRESS = process.env.PLATFORM_FEE_ADDRESS || '';
 
 export const BUYING_PSBT_SELLER_SIGNATURE_INDEX = 1;
 export const BUYING_PSBT_BUYER_RECEIVE_INDEX = 0;

@@ -2,24 +2,22 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as ecc from 'tiny-secp256k1';
 import { RPCClient } from 'rpc-bitcoin';
-import * as dotenv from 'dotenv';
 import { Errors, getError } from '../constant/errors';
 import {
   BITCOIN_RPC_HOST,
   BITCOIN_RPC_PASS,
   BITCOIN_RPC_PORT,
   BITCOIN_RPC_TIMEOUT,
-  BITCOIN_RPC_USER, BRC20_UTXO_VALUE,
+  BITCOIN_RPC_USER,
+  BRC20_UTXO_VALUE,
   BUYING_PSBT_SELLER_SIGNATURE_INDEX,
   DUMMY_UTXO_MIN_VALUE,
   NETWORK,
-  PLATFORM_FEE_ADDRESS,
 } from '../constant/constants';
 import { satToBtc } from '../utils/util';
 import { utxoToInput } from '../utils/address-helpers';
-import { Atomical, OrderInfo, PsbtToSign } from './arc20-psbt.dto';
+import { Atomical, OrderInfo, PsbtToSign, SignIndex } from './arc20-psbt.dto';
 
-dotenv.config();
 bitcoin.initEccLib(ecc);
 
 @Injectable()
@@ -39,15 +37,18 @@ export class Arc20PsbtService {
 
   async generateUnsignedSellerPsbt(orderInfo: OrderInfo): Promise<PsbtToSign> {
     const psbt = new bitcoin.Psbt({ network: NETWORK });
-    const index: number[] = [];
+    const signIndex: SignIndex[] = [];
+    const sighashType = bitcoin.Transaction.SIGHASH_SINGLE |
+      bitcoin.Transaction.SIGHASH_ANYONECANPAY;
+
     for (const utxo of orderInfo.sellerAtomicals) {
       const input = utxoToInput(utxo, orderInfo.sellerInfo.address,
-        orderInfo.sellerInfo.publicKey);
+        orderInfo.sellerInfo.publicKey, sighashType);
 
-      psbt.addInput({
-        ...input,
-        sighashType: bitcoin.Transaction.SIGHASH_SINGLE |
-          bitcoin.Transaction.SIGHASH_ANYONECANPAY,
+      psbt.addInput(input);
+      signIndex.push({
+        sighashType,
+        index: psbt.txInputs.length - 1
       });
 
       const sellerOutput = this.getSellerOutputValue(
@@ -60,14 +61,11 @@ export class Arc20PsbtService {
         address: orderInfo.sellerInfo.receiveAddress,
         value: sellerOutput,
       });
-      index.push(psbt.txInputs.length - 1);
     }
 
     return {
       psbtBase64: psbt.toBase64(),
-      sighashType: bitcoin.Transaction.SIGHASH_SINGLE |
-        bitcoin.Transaction.SIGHASH_ANYONECANPAY,
-      index,
+      signIndex,
     };
   }
 
@@ -80,14 +78,17 @@ export class Arc20PsbtService {
         HttpStatus.OK);
     }
 
-    let index: number[] = [];
+    let signIndex: SignIndex[] = [];
     const buyerUtxos = orderInfo.buyerUtxos.sort((a, b) => a.value - b.value).
       filter(utxo => utxo.value > BRC20_UTXO_VALUE);
 
     const input = utxoToInput(buyerUtxos[0], orderInfo.buyerInfo.address,
       orderInfo.buyerInfo.publicKey);
     psbt.addInput(input);
-    index.push(psbt.txInputs.length - 1);
+    signIndex.push({
+      sighashType: bitcoin.Transaction.SIGHASH_ALL,
+      index: psbt.txInputs.length - 1
+    });
 
     const totalArc20Amount = orderInfo.sellerAtomicals.reduce(
       (accum, atomical) => accum + atomical.value, 0);
@@ -112,15 +113,14 @@ export class Arc20PsbtService {
 
     if (platformFeeValue > 0) {
       psbt.addOutput({
-        address: PLATFORM_FEE_ADDRESS,
+        address: orderInfo.platformReceiveAddress,
         value: platformFeeValue,
       });
     }
 
     // Add payment utxo inputs
     let totalBuyBTCAmount = totalArc20Amount * orderInfo.unitPrice *
-      (orderInfo.buyerInfo.serviceFeeRate +
-        orderInfo.sellerInfo.serviceFeeRate);
+      (1 + orderInfo.buyerInfo.serviceFeeRate);
     let buyerInput = buyerUtxos[0].value;
     let utxoIndex = 1;
     while (true) {
@@ -141,7 +141,10 @@ export class Arc20PsbtService {
         orderInfo.buyerInfo.publicKey);
 
       psbt.addInput(input);
-      index.push(psbt.txInputs.length - 1);
+      signIndex.push({
+        sighashType: bitcoin.Transaction.SIGHASH_ALL,
+        index: psbt.txInputs.length - 1
+      });
 
       buyerInput += buyerUtxos[utxoIndex].value;
       utxoIndex++;
@@ -177,8 +180,7 @@ Missing:    ${satToBtc(-changeValue)} BTC`);
 
     return {
       psbtBase64: psbt.toBase64(),
-      sighashType: bitcoin.Transaction.SIGHASH_ALL,
-      index,
+      signIndex,
     };
   }
 
@@ -261,7 +263,6 @@ Missing:    ${satToBtc(-changeValue)} BTC`);
       vinsLength * inSize +
       voutsLength * outSize +
       includeChangeOutput * outSize;
-    const fee = txSize * feeRate;
-    return fee;
+    return txSize * feeRate;
   }
 }

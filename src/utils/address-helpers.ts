@@ -1,10 +1,6 @@
-import * as bs58check from "bs58check";
-import { sha256 } from "js-sha256";
-import * as ecc from 'tiny-secp256k1';
-const bitcoin = require('bitcoinjs-lib');
-bitcoin.initEccLib(ecc);
-import { NETWORK } from '../constant/constants';
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371';
+import { NETWORK } from '../constant/constants';
+const bitcoin = require('bitcoinjs-lib');
 
 export enum AddressTypeString {
   p2pkh = 'p2pkh',
@@ -47,13 +43,15 @@ export function utxoToInput(
   utxo: any,
   address: string,
   publicKey: string,
+  sighashType: number = bitcoin.Transaction.SIGHASH_ALL
 ) {
   const addressType = getAddressType(address);
-  const output = bitcoin.address.toOutputScript(address, NETWORK)
+  const output = bitcoin.address.toOutputScript(address, NETWORK);
   const script = Buffer.from(output as string, 'hex');
 
   switch (addressType) {
-    case AddressTypeString.p2pkh || AddressTypeString.p2pkh_testnet: {
+    case AddressTypeString.p2pkh:
+    case AddressTypeString.p2pkh_testnet: {
       // have transform script to scripthash, use witnessScript
       return {
         hash: utxo.txid,
@@ -62,10 +60,13 @@ export function utxoToInput(
           value: utxo.value,
           script,
         },
+        sighashType: sighashType
       };
     }
-    case AddressTypeString.p2sh || AddressTypeString.p2sh_testnet: {
-      const redeemData = bitcoin.payments.p2wpkh({ pubkey: Buffer.from(publicKey, 'hex') });
+    case AddressTypeString.p2sh:
+    case AddressTypeString.p2sh_testnet: {
+      const redeemData = bitcoin.payments.p2wpkh(
+        { pubkey: Buffer.from(publicKey, 'hex') });
       return {
         hash: utxo.txid,
         index: utxo.vout,
@@ -74,9 +75,11 @@ export function utxoToInput(
           script,
         },
         redeemScript: redeemData.output,
+        sighashType: sighashType
       };
     }
-    case AddressTypeString.p2wpkh || AddressTypeString.p2wpkh_testnet: {
+    case AddressTypeString.p2wpkh:
+    case AddressTypeString.p2wpkh_testnet: {
       return {
         hash: utxo.txid,
         index: utxo.vout,
@@ -84,9 +87,12 @@ export function utxoToInput(
           value: utxo.value,
           script,
         },
+        sighashType: sighashType
       };
     }
-    case AddressTypeString.p2tr || AddressTypeString.p2tr_testnet || AddressTypeString.p2tr_regtest: {
+    case AddressTypeString.p2tr:
+    case AddressTypeString.p2tr_testnet :
+    case AddressTypeString.p2tr_regtest: {
       return {
         hash: utxo.txid,
         index: utxo.vout,
@@ -95,6 +101,7 @@ export function utxoToInput(
           script,
         },
         tapInternalKey: toXOnly(Buffer.from(publicKey, 'hex')),
+        sighashType: sighashType
       };
     }
   }
