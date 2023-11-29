@@ -11,10 +11,6 @@ export const BITCOIN_RPC_TIMEOUT = Number(
 );
 export const NETWORK = process.env.NETWORK === 'testnet' ? networks.testnet : process.env.NETWORK === 'regtest'? networks.regtest:networks.bitcoin;
 
-export const MARKET_FEE_RATE_DEMON: number = 10000;
-export const SELLER_FEE_RATE: number = Number(process.env.SELLER_FEE_RATE || 100);
-export const BUYER_FEE_RATE: number = Number(process.env.BUYER_FEE_RATE || 100);
-
 export const DUMMY_UTXO_MIN_VALUE = Number(
   process.env.DUMMY_UTXO_MIN_VALUE ?? 580,
 );

@@ -7,8 +7,6 @@ export class Utxo {
   vout: number;
   @ApiProperty()
   value: number;
-  @ApiProperty()
-  script: any;
 }
 
 
@@ -24,8 +22,10 @@ export class UserInfo {
   address: string;
   @ApiProperty()
   receiveAddress: string;
+  @ApiProperty()
+  serviceFeeRate: number;
   @ApiProperty({required: false})
-  feeRate?: number;
+  networkFeeRate?: number;
 }
 
 export class OrderInfo {
@@ -41,6 +41,8 @@ export class OrderInfo {
   buyerUtxos?: Utxo[];
   @ApiProperty({required: false})
   buyerInfo?: UserInfo;
+  @ApiProperty()
+  platformReceiveAddress: string
 }
 
 export class PsbtToSign {
