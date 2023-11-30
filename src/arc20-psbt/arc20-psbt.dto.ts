@@ -45,11 +45,46 @@ export class OrderInfo {
   platformReceiveAddress: string
 }
 
+export class SignedOrderInfo {
+  @ApiProperty({name: 'order_info'})
+  orderInfo: OrderInfo;
+  @ApiProperty({name: 'signed_psbt'})
+  signedPsbt: string
+}
+
+export class OrderCancel {
+  @ApiProperty({name: 'atomical_id'})
+  atomicalId: string;
+  @ApiProperty({name: 'unit_price'})
+  unitPrice: number;
+  @ApiProperty({ type: () => [Atomical], name: 'seller_atomicals' })
+  sellerAtomicals: Atomical[];
+  @ApiProperty({name: 'seller_info'})
+  sellerInfo: UserInfo;
+  @ApiProperty({ type: () => [Utxo] , name: 'seller_utxos'})
+  sellerUtxos: Utxo[];
+  @ApiProperty({name: 'platform_receive_address'})
+  platformReceiveAddress: string
+}
+
+export class SignedOrderCancel {
+  @ApiProperty({name: 'order_cancel'})
+  orderCancel: OrderCancel;
+  @ApiProperty({name: 'signed_psbt'})
+  signedPsbt: string
+}
+
 export class PsbtToSign {
   @ApiProperty({name: 'psbt_base64'})
   psbtBase64: string;
   @ApiProperty({type: () => [Atomical], name: 'sign_index'})
   signIndex: SignIndex[];
+  @ApiProperty({name: 'service_fee'})
+  serviceFee: number;
+  @ApiProperty({name: 'network_fee', required: false})
+  networkFee?: number;
+  @ApiProperty({name: 'tx_size', required: false})
+  txSize?: number
 }
 
 export class SignIndex {

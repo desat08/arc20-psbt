@@ -79,7 +79,7 @@ describe('AppController', () => {
         buyerPsbt.signInput(signIndex.index, buyerKeyPairInfo.tweakedChildNode, [signIndex.sighashType])
       }
 
-      // 4. merge and extract tx
+      // 5. merge and extract tx
       const psbtToMerge: PsbtToMerge = {
         sellerPsbt: sellerPsbt.toBase64(),
         buyerPsbt: buyerPsbt.toBase64()
@@ -89,6 +89,8 @@ describe('AppController', () => {
 
       console.log(rawTx)
       console.log(tx)
+
+      expect(rawTx).toEqual('02000000000102b3a2ad0d7ecba2c6f9ad53b85af1d419fd21d966ac6058a9a224b163144542560000000000ffffffff60975f92e8ee7503b3af95d0b32d2b30caf346343c96c0c7cb2c970c255bb26c0000000000ffffffff04e803000000000000225120032aa649d47d9e15160c6c7fac8eb038eba7e59727d9d7b223dbb7b9e47ff514f00a00000000000022512040fe575528adc9f1885ccb39f11cb333a00caf718d5c2885a2567730581f1f0758020000000000002251202ef01bb0653763e31be8ec1418173a276dc0cb52450e88c8b50b5dbdd5cefcbc6c98f50500000000225120032aa649d47d9e15160c6c7fac8eb038eba7e59727d9d7b223dbb7b9e47ff5140141f54de1fb5ab4f1f114e1a7f95a500a5cda36f41224a3e7148eda3fd9704ad2f5fd2c5e6ad5c0aef2b5f92360a6e38f4fef1ccab38d45407c7006bbd005e809e70101417f49b855d209e11625486d85eda34643d5769113f6e51152074714443d39c3eca25d05ac6611ebdaf3e3157e32064bc01cf072982fa9b6421c3efe328fb16adf8300000000')
     });
   });
 });
