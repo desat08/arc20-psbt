@@ -25,6 +25,7 @@
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.1.16",
     "bitcoinjs-lib": "^6.1.5",
+    "ecpair": "^2.1.0",
     "dotenv": "^16.3.1",
     "js-sha256": "^0.10.1",
     "reflect-metadata": "^0.1.13",

@@ -14,15 +14,18 @@ import {
   DUMMY_UTXO_MIN_VALUE,
   NETWORK,
 } from '../constant/constants';
-import { satToBtc } from '../utils/util';
+import { getValidator, satToBtc } from '../utils/util';
 import { utxoToInput } from '../utils/address-helpers';
 import {
-  Atomical,
   OrderCancel,
   OrderInfo,
-  PsbtToSign, SignedOrderCancel, SignedOrderInfo,
+  PsbtToSign,
+  SignedOrderCancel,
+  SignedOrderInfo,
   SignIndex,
 } from './arc20-psbt.dto';
+import { Psbt } from 'bitcoinjs-lib';
+import { Buffer } from 'bitcoinjs-lib/src/types';
 
 bitcoin.initEccLib(ecc);
 
@@ -272,24 +275,102 @@ You have:    ${satToBtc(totalInput)} BTC`);
     };
   }
 
-  verifySignedSellerPsbt(signedOrderInfo: SignedOrderInfo): boolean {
-    return true;
+  verifySignedSellerPsbt(signedOrderInfo: SignedOrderInfo) {
+    const psbt = bitcoin.Psbt.fromBase64(signedOrderInfo.sellerPsbt, {
+      network: NETWORK,
+    });
+    const sellerPsbt = this.generateUnsignedSellerPsbt(
+      signedOrderInfo.orderInfo);
+    const psbtToSign = bitcoin.Psbt.fromBase64(sellerPsbt.psbtBase64, {
+      network: NETWORK,
+    });
+
+    const validator = getValidator(
+      signedOrderInfo.orderInfo.sellerInfo.address);
+    if (!psbt.validateSignaturesOfAllInputs(validator)) {
+      throw new HttpException(getError(Errors.ERR_INVALID_SIGNATURE),
+        HttpStatus.OK);
+    }
+
+    const error = this.comparePsbt(psbt, psbtToSign);
+    if (error) {
+      throw new HttpException(getError(error), HttpStatus.OK);
+    }
+
+    //   psbt.data.inputs.forEach((input) => {
+    //     // Verify that the seller has signed the PSBT if atomical is held on a taproot and tapInternalKey is present
+    //     if (input.tapInternalKey) {
+    //       const finalScriptWitness = input.finalScriptWitness;
+    //
+    //       if (finalScriptWitness && finalScriptWitness.length > 0) {
+    //         // Validate that the finalScriptWitness is not empty (and not just the initial value, without the tapKeySig)
+    //         if (finalScriptWitness.toString('hex') === '0141') {
+    //           console.log(
+    //             'Invalid signature - no taproot signature present on the finalScriptWitness');
+    //           throw new HttpException(getError(Errors.ERR_INVALID_SIG_NO_TR_SIG),
+    //             HttpStatus.OK);
+    //         }
+    //       } else {
+    //         console.log('Invalid signature - no finalScriptWitness');
+    //         throw new HttpException(
+    //           getError(Errors.ERR_INVALID_SIG_NO_FINAL_SCRIPT_WITNESS),
+    //           HttpStatus.OK);
+    //       }
+    //     }
+    //
+    //     if (!input.finalScriptWitness || !input.finalScriptSig) {
+    //       throw new HttpException(
+    //         getError(Errors.ERR_INVALID_SIG_NO_FINAL_SCRIPT_WITNESS),
+    //         HttpStatus.OK);
+    //     }
+    //   });
   }
 
-  verifySignedBuyerPsbt(signedOrderInfo: SignedOrderInfo): boolean {
-    return true;
+  verifyBuyerSignedPsbt(orderInfo: OrderInfo, psbt: Psbt) {
+    const buyerPsbt = this.generateUnsignedBuyerPsbt(orderInfo);
+    const psbtToSign = bitcoin.Psbt.fromBase64(buyerPsbt.psbtBase64, {
+      network: NETWORK,
+    });
+
+    const validator = getValidator(orderInfo.buyerInfo.address);
+    for (const signIndex of buyerPsbt.signIndex) {
+      if (!psbt.validateSignaturesOfInput(signIndex.index, validator)) {
+        throw new HttpException(getError(Errors.ERR_INVALID_SIGNATURE),
+          HttpStatus.OK);
+      }
+    }
+
+    const error = this.comparePsbt(psbt, psbtToSign);
+    if (error) {
+      throw new HttpException(getError(error), HttpStatus.OK);
+    }
   }
 
-  verifySignedSellerCancelPsbt(signedOrderCancel: SignedOrderCancel): boolean {
-    return true;
+  verifySellerCancelSignedPsbt(orderCancel: OrderCancel, psbt: Psbt) {
+    const cancelPsbt = this.generateUnsignedSellerCancelPsbt(orderCancel);
+    const psbtToSign = bitcoin.Psbt.fromBase64(cancelPsbt.psbtBase64, {
+      network: NETWORK,
+    });
+
+    const validator = getValidator(orderCancel.sellerInfo.address);
+    if (!psbt.validateSignaturesOfAllInputs(validator)) {
+      throw new HttpException(getError(Errors.ERR_INVALID_SIGNATURE),
+        HttpStatus.OK);
+    }
+
+    const error = this.comparePsbt(psbt, psbtToSign);
+    if (error) {
+      throw new HttpException(getError(error), HttpStatus.OK);
+    }
   }
 
-  extractTxFromPSBTs(
-    signedSellingPSBTBase64: string,
-    signedBuyingPSBTBase64: string,
-  ): string {
-    const sellerSignedPsbt = bitcoin.Psbt.fromBase64(signedSellingPSBTBase64);
-    const buyerSignedPsbt = bitcoin.Psbt.fromBase64(signedBuyingPSBTBase64);
+  extractSellerBuyerTxFromPsbt(signedOrderInfo: SignedOrderInfo): string {
+    const sellerSignedPsbt = bitcoin.Psbt.fromBase64(
+      signedOrderInfo.sellerPsbt, { network: NETWORK });
+    const buyerSignedPsbt = bitcoin.Psbt.fromBase64(signedOrderInfo.buyerPsbt, {
+      network: NETWORK,
+    });
+    this.verifyBuyerSignedPsbt(signedOrderInfo.orderInfo, buyerSignedPsbt);
 
     (buyerSignedPsbt.data.globalMap.unsignedTx as any).tx.ins[
       BUYING_PSBT_SELLER_SIGNATURE_INDEX
@@ -299,6 +380,20 @@ You have:    ${satToBtc(totalInput)} BTC`);
 
     buyerSignedPsbt.finalizeAllInputs();
     const tx = buyerSignedPsbt.extractTransaction();
+
+    return tx.toHex();
+  }
+
+  extractSellerCancelTxFromPsbt(
+    signedOrderCancel: SignedOrderCancel,
+  ): string {
+    const sellerSignedPsbt = bitcoin.Psbt.fromBase64(
+      signedOrderCancel.signedPsbt);
+    this.verifySellerCancelSignedPsbt(signedOrderCancel.orderCancel,
+      sellerSignedPsbt);
+
+    sellerSignedPsbt.finalizeAllInputs();
+    const tx = sellerSignedPsbt.extractTransaction();
 
     return tx.toHex();
   }
@@ -342,5 +437,36 @@ You have:    ${satToBtc(totalInput)} BTC`);
       voutsLength * outSize +
       includeChangeOutput * outSize;
     return [txSize * feeRate, txSize];
+  }
+
+  comparePsbt(psbt1: Psbt, psbt2: Psbt): Errors | null {
+    if (psbt1.txInputs.length !== psbt2.txInputs.length) {
+      return Errors.ERR_INVALID_INPUT_COUNT;
+    }
+
+    if (psbt1.txOutputs.length !== psbt2.txOutputs.length) {
+      return Errors.ERR_INVALID_OUTPUT_COUNT;
+    }
+
+    for (let i = 0; i < psbt1.txInputs.length; i++) {
+      const input1 = psbt1.txInputs[i];
+      const input2 = psbt2.txInputs[i];
+
+      if (input1.hash.compare(input2.hash) !== 0 || input1.index !==
+        input2.index) {
+        return Errors.ERR_INVALID_INPUT;
+      }
+    }
+
+    for (let i = 0; i < psbt1.txOutputs.length; i++) {
+      const output1 = psbt1.txOutputs[i];
+      const output2 = psbt2.txOutputs[i];
+      if (output1.value !== output2.value || output1.address !==
+        output2.address) {
+        return Errors.ERR_INVALID_OUTPUT;
+      }
+    }
+
+    return null;
   }
 }

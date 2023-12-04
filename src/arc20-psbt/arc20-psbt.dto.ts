@@ -48,8 +48,10 @@ export class OrderInfo {
 export class SignedOrderInfo {
   @ApiProperty({name: 'order_info'})
   orderInfo: OrderInfo;
-  @ApiProperty({name: 'signed_psbt'})
-  signedPsbt: string
+  @ApiProperty({name: 'seller_psbt'})
+  sellerPsbt: string;
+  @ApiProperty({name: 'buyer_psbt'})
+  buyerPsbt?: string;
 }
 
 export class OrderCancel {
@@ -91,11 +93,4 @@ export class SignIndex {
   @ApiProperty({name: 'sighash_type'})
   sighashType: number;
   index: number
-}
-
-export class PsbtToMerge {
-  @ApiProperty({name: 'seller_psbt'})
-  sellerPsbt: string;
-  @ApiProperty({name: 'buyer_psbt'})
-  buyerPsbt: string;
 }

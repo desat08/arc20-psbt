@@ -9,7 +9,6 @@ import { Arc20PsbtService } from '../arc20-psbt/arc20-psbt.service';
 import {
   OrderCancel,
   OrderInfo,
-  PsbtToMerge,
   PsbtToSign, SignedOrderCancel, SignedOrderInfo,
 } from '../arc20-psbt/arc20-psbt.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
@@ -41,28 +40,24 @@ export class AppController {
     return this.arc20PsbtService.generateUnsignedBuyerPsbt(orderInfo);
   }
 
-  @Post('/psbt/extract')
-  extractTxFromPsbts(@Body() psbtToMerge: PsbtToMerge): string {
-    return this.arc20PsbtService.extractTxFromPSBTs(psbtToMerge.sellerPsbt, psbtToMerge.buyerPsbt);
+  @Post('/psbt/verify/seller')
+  verifySignedSellerPsbt(@Body() signedOrderInfo: SignedOrderInfo) {
+     this.arc20PsbtService.verifySignedSellerPsbt(signedOrderInfo);
+  }
+
+  @Post('/psbt/extract/seller_buyer')
+  extractSellerBuyerTxFromPsbt(@Body() signedOrderInfo: SignedOrderInfo): string {
+    return this.arc20PsbtService.extractSellerBuyerTxFromPsbt(signedOrderInfo);
   }
 
   @Post('/psbt/cancel')
+  @ApiOkResponse({ type: PsbtToSign })
   cancelSellerPsbt(@Body() orderCancel: OrderCancel): PsbtToSign {
     return this.arc20PsbtService.generateUnsignedSellerCancelPsbt(orderCancel);
   }
 
-  @Post('/psbt/verify/seller')
-  verifySignedSellerPsbt(@Body() signedOrderInfo: SignedOrderInfo): boolean {
-    return this.arc20PsbtService.verifySignedSellerPsbt(signedOrderInfo);
-  }
-
-  @Post('/psbt/verify/buyer')
-  verifySignedBuyerPsbt(@Body() signedOrderInfo: SignedOrderInfo): boolean {
-    return this.arc20PsbtService.verifySignedBuyerPsbt(signedOrderInfo);
-  }
-
-  @Post('/psbt/verify/seller_cancel')
-  verifySignedSellerCancelPsbt(@Body() signedOrderCancel: SignedOrderCancel): boolean {
-    return this.arc20PsbtService.verifySignedSellerCancelPsbt(signedOrderCancel);
+  @Post('/psbt/extract/seller_cancel')
+  extractSellerCancelTxFromPsbt(@Body() signedOrderCancel: SignedOrderCancel): string {
+    return this.arc20PsbtService.extractSellerCancelTxFromPsbt(signedOrderCancel);
   }
 }
