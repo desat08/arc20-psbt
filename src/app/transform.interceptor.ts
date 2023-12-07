@@ -18,14 +18,18 @@ export class TransformInterceptor implements NestInterceptor {
 
   private transformObjectKeys(obj: any, snakeToCamel: boolean): any {
     if (obj && typeof obj === 'object') {
-      const transformedObject = {};
+      if (Array.isArray(obj)) {
+        return obj.map(item => this.transformObjectKeys(item, snakeToCamel));
+      } else {
+        const transformedObject = {};
 
-      for (const key of Object.keys(obj)) {
-        const transformedKey = snakeToCamel ? this.toCamelCase(key) : this.toSnakeCase(key);
-        transformedObject[transformedKey] = this.transformObjectKeys(obj[key], snakeToCamel);
+        for (const key of Object.keys(obj)) {
+          const transformedKey = snakeToCamel ? this.toCamelCase(key) : this.toSnakeCase(key);
+          transformedObject[transformedKey] = this.transformObjectKeys(obj[key], snakeToCamel);
+        }
+
+        return transformedObject;
       }
-
-      return transformedObject;
     } else {
       return obj;
     }
