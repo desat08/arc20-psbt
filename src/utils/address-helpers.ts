@@ -1,5 +1,6 @@
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371';
 import { NETWORK } from '../constant/constants';
+import { RPCClient } from 'rpc-bitcoin';
 const bitcoin = require('bitcoinjs-lib');
 
 export enum AddressTypeString {
@@ -11,7 +12,10 @@ export enum AddressTypeString {
   p2tr_testnet = 'p2tr_testnet',
   p2sh_testnet = 'p2sh_testnet',
   p2pkh_testnet = 'p2pkh_testnet',
+  p2wpkh_regtest = 'p2wpkh_regtest',
   p2tr_regtest = 'p2tr_regtest',
+  p2sh_regtest = 'p2sh_regtest',
+  p2pkh_regtest = 'p2pkh_regtest',
   unknown = 'unknown',
 }
 
@@ -39,15 +43,20 @@ export function getAddressType(address: string): AddressTypeString {
   }
 }
 
-export function utxoToInput(
+export async function utxoToInput(
   utxo: any,
   address: string,
   publicKey: string,
+  rpcClient: RPCClient,
   sighashType: number = bitcoin.Transaction.SIGHASH_ALL
 ) {
   const addressType = getAddressType(address);
   const output = bitcoin.address.toOutputScript(address, NETWORK);
   const script = Buffer.from(output as string, 'hex');
+
+  const tx = bitcoin.Transaction.fromHex(
+    await rpcClient.getrawtransaction({ txid: utxo.txid }),
+  );
 
   switch (addressType) {
     case AddressTypeString.p2pkh:
@@ -56,6 +65,7 @@ export function utxoToInput(
       return {
         hash: utxo.txid,
         index: utxo.vout,
+        nonWitnessUtxo: tx.toBuffer(),
         witnessUtxo: {
           value: utxo.value,
           script,
@@ -70,6 +80,7 @@ export function utxoToInput(
       return {
         hash: utxo.txid,
         index: utxo.vout,
+        nonWitnessUtxo: tx.toBuffer(),
         witnessUtxo: {
           value: utxo.value,
           script,
@@ -83,6 +94,7 @@ export function utxoToInput(
       return {
         hash: utxo.txid,
         index: utxo.vout,
+        nonWitnessUtxo: tx.toBuffer(),
         witnessUtxo: {
           value: utxo.value,
           script,
@@ -96,6 +108,7 @@ export function utxoToInput(
       return {
         hash: utxo.txid,
         index: utxo.vout,
+        nonWitnessUtxo: tx.toBuffer(),
         witnessUtxo: {
           value: utxo.value,
           script,

@@ -25,7 +25,6 @@ import {
   SignIndex,
 } from './arc20-psbt.dto';
 import { Psbt } from 'bitcoinjs-lib';
-import { Buffer } from 'bitcoinjs-lib/src/types';
 
 bitcoin.initEccLib(ecc);
 
@@ -44,14 +43,14 @@ export class Arc20PsbtService {
     });
   }
 
-  generateUnsignedSellerPsbt(orderInfo: OrderInfo): PsbtToSign {
+  async generateUnsignedSellerPsbt(orderInfo: OrderInfo): Promise<PsbtToSign> {
     const psbt = new bitcoin.Psbt({ network: NETWORK });
     const signIndex: SignIndex[] = [];
     const sighashType = bitcoin.Transaction.SIGHASH_SINGLE |
       bitcoin.Transaction.SIGHASH_ANYONECANPAY;
 
     let totalServiceFee = 0;
-    const inputOutputList = this.getSellerInputAndOutput(orderInfo);
+    const inputOutputList = await this.getSellerInputAndOutput(orderInfo);
     inputOutputList.forEach((item) => {
       psbt.addInput(item.sellerInput);
       psbt.addOutput(item.sellerOutput);
@@ -69,9 +68,9 @@ export class Arc20PsbtService {
     };
   }
 
-  generateUnsignedBuyerPsbt(
+  async generateUnsignedBuyerPsbt(
     orderInfo: OrderInfo,
-  ): PsbtToSign {
+  ): Promise<PsbtToSign> {
     const psbt = new bitcoin.Psbt({ network: NETWORK });
     if (orderInfo.buyerUtxos.length === 0) {
       throw new HttpException(getError(Errors.ERR_NOT_ENOUGH_UTXO_TO_BUY),
@@ -82,8 +81,8 @@ export class Arc20PsbtService {
     const buyerUtxos = orderInfo.buyerUtxos.sort((a, b) => a.value - b.value).
       filter(utxo => utxo.value > BRC20_UTXO_VALUE);
 
-    const input = utxoToInput(buyerUtxos[0], orderInfo.buyerInfo.address,
-      orderInfo.buyerInfo.publicKey);
+    const input = await utxoToInput(buyerUtxos[0], orderInfo.buyerInfo.address,
+      orderInfo.buyerInfo.publicKey, this.client);
     psbt.addInput(input);
     signIndex.push({
       sighashType: bitcoin.Transaction.SIGHASH_ALL,
@@ -96,7 +95,7 @@ export class Arc20PsbtService {
       address: orderInfo.buyerInfo.receiveAddress,
       value: totalArc20Amount,
     });
-    const inputOutputList = this.getSellerInputAndOutput(orderInfo);
+    const inputOutputList = await this.getSellerInputAndOutput(orderInfo);
     inputOutputList.forEach((item) => {
       psbt.addInput(item.sellerInput);
       psbt.addOutput(item.sellerOutput);
@@ -143,9 +142,9 @@ You have:    ${satToBtc(totalInput - totalArc20Amount)} BTC`);
         throw new HttpException(getError(Errors.ERR_NOT_ENOUGH_UTXO_TO_BUY),
           HttpStatus.OK);
       }
-      const input = utxoToInput(buyerUtxos[utxoIndex],
+      const input = await utxoToInput(buyerUtxos[utxoIndex],
         orderInfo.buyerInfo.address,
-        orderInfo.buyerInfo.publicKey);
+        orderInfo.buyerInfo.publicKey, this.client);
       psbt.addInput(input);
       signIndex.push({
         sighashType: bitcoin.Transaction.SIGHASH_ALL,
@@ -174,14 +173,14 @@ You have:    ${satToBtc(totalInput - totalArc20Amount)} BTC`);
     };
   }
 
-  generateUnsignedSellerCancelPsbt(orderCancel: OrderCancel): PsbtToSign {
+  async generateUnsignedSellerCancelPsbt(orderCancel: OrderCancel): Promise<PsbtToSign> {
     const psbt = new bitcoin.Psbt({ network: NETWORK });
     const signIndex: SignIndex[] = [];
 
     for (const sellerUtxo of orderCancel.sellerAtomicals) {
-      const sellerInput = utxoToInput(sellerUtxo,
+      const sellerInput = await utxoToInput(sellerUtxo,
         orderCancel.sellerInfo.address,
-        orderCancel.sellerInfo.publicKey);
+        orderCancel.sellerInfo.publicKey, this.client);
       const sellerOutput = {
         address: orderCancel.sellerInfo.address,
         value: sellerUtxo.value,
@@ -199,8 +198,9 @@ You have:    ${satToBtc(totalInput - totalArc20Amount)} BTC`);
       (a, b) => a.value - b.value).
       filter(utxo => utxo.value > BRC20_UTXO_VALUE);
 
-    const input = utxoToInput(sellerUtxos[0], orderCancel.sellerInfo.address,
-      orderCancel.sellerInfo.publicKey);
+    const input = await utxoToInput(sellerUtxos[0],
+      orderCancel.sellerInfo.address,
+      orderCancel.sellerInfo.publicKey, this.client);
     psbt.addInput(input);
     signIndex.push({
       sighashType: bitcoin.Transaction.SIGHASH_ALL,
@@ -245,9 +245,9 @@ You have:    ${satToBtc(totalInput)} BTC`);
         throw new HttpException(getError(Errors.ERR_NOT_ENOUGH_UTXO_TO_BUY),
           HttpStatus.OK);
       }
-      const input = utxoToInput(sellerUtxos[utxoIndex],
+      const input = await utxoToInput(sellerUtxos[utxoIndex],
         orderCancel.sellerInfo.address,
-        orderCancel.sellerInfo.publicKey);
+        orderCancel.sellerInfo.publicKey, this.client);
       psbt.addInput(input);
       signIndex.push({
         sighashType: bitcoin.Transaction.SIGHASH_ALL,
@@ -275,11 +275,11 @@ You have:    ${satToBtc(totalInput)} BTC`);
     };
   }
 
-  verifySignedSellerPsbt(signedOrderInfo: SignedOrderInfo) {
+  async verifySignedSellerPsbt(signedOrderInfo: SignedOrderInfo) {
     const psbt = bitcoin.Psbt.fromBase64(signedOrderInfo.sellerPsbt, {
       network: NETWORK,
     });
-    const sellerPsbt = this.generateUnsignedSellerPsbt(
+    const sellerPsbt = await this.generateUnsignedSellerPsbt(
       signedOrderInfo.orderInfo);
     const psbtToSign = bitcoin.Psbt.fromBase64(sellerPsbt.psbtBase64, {
       network: NETWORK,
@@ -296,38 +296,10 @@ You have:    ${satToBtc(totalInput)} BTC`);
     if (error) {
       throw new HttpException(getError(error), HttpStatus.OK);
     }
-
-    //   psbt.data.inputs.forEach((input) => {
-    //     // Verify that the seller has signed the PSBT if atomical is held on a taproot and tapInternalKey is present
-    //     if (input.tapInternalKey) {
-    //       const finalScriptWitness = input.finalScriptWitness;
-    //
-    //       if (finalScriptWitness && finalScriptWitness.length > 0) {
-    //         // Validate that the finalScriptWitness is not empty (and not just the initial value, without the tapKeySig)
-    //         if (finalScriptWitness.toString('hex') === '0141') {
-    //           console.log(
-    //             'Invalid signature - no taproot signature present on the finalScriptWitness');
-    //           throw new HttpException(getError(Errors.ERR_INVALID_SIG_NO_TR_SIG),
-    //             HttpStatus.OK);
-    //         }
-    //       } else {
-    //         console.log('Invalid signature - no finalScriptWitness');
-    //         throw new HttpException(
-    //           getError(Errors.ERR_INVALID_SIG_NO_FINAL_SCRIPT_WITNESS),
-    //           HttpStatus.OK);
-    //       }
-    //     }
-    //
-    //     if (!input.finalScriptWitness || !input.finalScriptSig) {
-    //       throw new HttpException(
-    //         getError(Errors.ERR_INVALID_SIG_NO_FINAL_SCRIPT_WITNESS),
-    //         HttpStatus.OK);
-    //     }
-    //   });
   }
 
-  verifyBuyerSignedPsbt(orderInfo: OrderInfo, psbt: Psbt) {
-    const buyerPsbt = this.generateUnsignedBuyerPsbt(orderInfo);
+  async verifyBuyerSignedPsbt(orderInfo: OrderInfo, psbt: Psbt) {
+    const buyerPsbt = await this.generateUnsignedBuyerPsbt(orderInfo);
     const psbtToSign = bitcoin.Psbt.fromBase64(buyerPsbt.psbtBase64, {
       network: NETWORK,
     });
@@ -346,8 +318,8 @@ You have:    ${satToBtc(totalInput)} BTC`);
     }
   }
 
-  verifySellerCancelSignedPsbt(orderCancel: OrderCancel, psbt: Psbt) {
-    const cancelPsbt = this.generateUnsignedSellerCancelPsbt(orderCancel);
+  async verifySellerCancelSignedPsbt(orderCancel: OrderCancel, psbt: Psbt) {
+    const cancelPsbt = await this.generateUnsignedSellerCancelPsbt(orderCancel);
     const psbtToSign = bitcoin.Psbt.fromBase64(cancelPsbt.psbtBase64, {
       network: NETWORK,
     });
@@ -398,11 +370,14 @@ You have:    ${satToBtc(totalInput)} BTC`);
     return tx.toHex();
   }
 
-  getSellerInputAndOutput(orderInfo: OrderInfo): any[] {
+  async getSellerInputAndOutput(orderInfo: OrderInfo): Promise<any[]> {
     const ret = [];
+    console.log(orderInfo)
     for (const sellerUtxo of orderInfo.sellerAtomicals) {
-      const sellerInput = utxoToInput(sellerUtxo, orderInfo.sellerInfo.address,
-        orderInfo.sellerInfo.publicKey, bitcoin.Transaction.SIGHASH_SINGLE |
+      const sellerInput = await utxoToInput(sellerUtxo,
+        orderInfo.sellerInfo.address,
+        orderInfo.sellerInfo.publicKey, this.client,
+        bitcoin.Transaction.SIGHASH_SINGLE |
         bitcoin.Transaction.SIGHASH_ANYONECANPAY);
 
       const serviceFee = Math.floor(sellerUtxo.value * orderInfo.unitPrice *

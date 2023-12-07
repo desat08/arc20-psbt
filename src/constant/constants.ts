@@ -6,9 +6,9 @@ dotenv.config();
 
 export const BITCOIN_RPC_HOST =
   process.env.BITCOIN_RPC_HOST || 'http://localhost';
-export const BITCOIN_RPC_PORT = Number(process.env.BITCOIN_RPC_PORT ?? 38332);
-export const BITCOIN_RPC_USER = process.env.BITCOIN_RPC_USER || '__cookie__';
-export const BITCOIN_RPC_PASS = process.env.BITCOIN_RPC_PASS || '';
+export const BITCOIN_RPC_PORT = Number(process.env.BITCOIN_RPC_PORT ?? 18443);
+export const BITCOIN_RPC_USER = process.env.BITCOIN_RPC_USER || 'test';
+export const BITCOIN_RPC_PASS = process.env.BITCOIN_RPC_PASS || 'test';
 export const BITCOIN_RPC_TIMEOUT = Number(
   process.env.BITCOIN_RPC_TIMEOUT ?? 120000,
 );

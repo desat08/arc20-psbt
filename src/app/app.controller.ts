@@ -1,9 +1,9 @@
 import {
   Body,
-  Controller,
+  Controller, Get,
   HttpException,
   HttpStatus,
-  Post,
+  Post, UseInterceptors,
 } from '@nestjs/common';
 import { Arc20PsbtService } from '../arc20-psbt/arc20-psbt.service';
 import {
@@ -13,31 +13,36 @@ import {
 } from '../arc20-psbt/arc20-psbt.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { Errors, getError } from '../constant/errors';
+import { TransformInterceptor } from './transform.interceptor';
 
 @Controller('/api/v1')
+@UseInterceptors(TransformInterceptor)
 export class AppController {
   constructor(
     private readonly arc20PsbtService: Arc20PsbtService) {}
 
   @Post('/psbt/seller')
   @ApiOkResponse({ type: PsbtToSign })
-  generateUnsignedSellerPsbt(@Body() orderInfo: OrderInfo): PsbtToSign {
-    return this.arc20PsbtService.generateUnsignedSellerPsbt(orderInfo);
+  async generateUnsignedSellerPsbt(@Body() orderInfo: OrderInfo): Promise<PsbtToSign> {
+    return await this.arc20PsbtService.generateUnsignedSellerPsbt(orderInfo);
   }
 
   @Post('/psbt/buyer')
   @ApiOkResponse({ type: PsbtToSign })
-  generateUnsignedBuyerPsbt(@Body() orderInfo: OrderInfo): PsbtToSign {
+  async generateUnsignedBuyerPsbt(@Body() orderInfo: OrderInfo): Promise<PsbtToSign> {
     if (orderInfo.buyerInfo == undefined) {
-      throw new HttpException(getError(Errors.ERR_MISSING_BUYER_INFO), HttpStatus.OK)
+      throw new HttpException(getError(Errors.ERR_MISSING_BUYER_INFO),
+        HttpStatus.OK)
     }
     if (orderInfo.buyerUtxos == undefined) {
-      throw new HttpException(getError(Errors.ERR_MISSING_BUYER_UTXO), HttpStatus.OK)
+      throw new HttpException(getError(Errors.ERR_MISSING_BUYER_UTXO),
+        HttpStatus.OK)
     }
     if (orderInfo.buyerInfo.networkFeeRate == undefined) {
-      throw new HttpException(getError(Errors.ERR_MISSING_BUYER_NETWORK_FEE_RATE), HttpStatus.OK)
+      throw new HttpException(
+        getError(Errors.ERR_MISSING_BUYER_NETWORK_FEE_RATE), HttpStatus.OK)
     }
-    return this.arc20PsbtService.generateUnsignedBuyerPsbt(orderInfo);
+    return await this.arc20PsbtService.generateUnsignedBuyerPsbt(orderInfo);
   }
 
   @Post('/psbt/verify/seller')
@@ -52,8 +57,9 @@ export class AppController {
 
   @Post('/psbt/cancel')
   @ApiOkResponse({ type: PsbtToSign })
-  cancelSellerPsbt(@Body() orderCancel: OrderCancel): PsbtToSign {
-    return this.arc20PsbtService.generateUnsignedSellerCancelPsbt(orderCancel);
+  async cancelSellerPsbt(@Body() orderCancel: OrderCancel): Promise<PsbtToSign> {
+    return await this.arc20PsbtService.generateUnsignedSellerCancelPsbt(
+      orderCancel);
   }
 
   @Post('/psbt/extract/seller_cancel')
