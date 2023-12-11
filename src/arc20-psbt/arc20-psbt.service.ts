@@ -62,7 +62,7 @@ export class Arc20PsbtService {
     });
 
     return {
-      psbtBase64: psbt.toBase64(),
+      psbtBase64: psbt.toHex(),
       serviceFee: totalServiceFee,
       signIndex,
     };
@@ -164,7 +164,7 @@ You have:    ${satToBtc(totalInput - totalArc20Amount)} BTC`);
     }
 
     return {
-      psbtBase64: psbt.toBase64(),
+      psbtBase64: psbt.toHex(),
       serviceFee: Math.ceil(totalArc20Amount * orderInfo.unitPrice *
         orderInfo.buyerInfo.serviceFeeRate),
       networkFee,
@@ -267,7 +267,7 @@ You have:    ${satToBtc(totalInput)} BTC`);
     }
 
     return {
-      psbtBase64: psbt.toBase64(),
+      psbtBase64: psbt.toHex(),
       serviceFee: platformFeeValue,
       networkFee,
       txSize,
@@ -276,12 +276,12 @@ You have:    ${satToBtc(totalInput)} BTC`);
   }
 
   async verifySignedSellerPsbt(signedOrderInfo: SignedOrderInfo) {
-    const psbt = bitcoin.Psbt.fromBase64(signedOrderInfo.sellerPsbt, {
+    const psbt = bitcoin.Psbt.fromHex(signedOrderInfo.sellerPsbt, {
       network: NETWORK,
     });
     const sellerPsbt = await this.generateUnsignedSellerPsbt(
       signedOrderInfo.orderInfo);
-    const psbtToSign = bitcoin.Psbt.fromBase64(sellerPsbt.psbtBase64, {
+    const psbtToSign = bitcoin.Psbt.fromHex(sellerPsbt.psbtBase64, {
       network: NETWORK,
     });
 
@@ -300,7 +300,7 @@ You have:    ${satToBtc(totalInput)} BTC`);
 
   async verifyBuyerSignedPsbt(orderInfo: OrderInfo, psbt: Psbt) {
     const buyerPsbt = await this.generateUnsignedBuyerPsbt(orderInfo);
-    const psbtToSign = bitcoin.Psbt.fromBase64(buyerPsbt.psbtBase64, {
+    const psbtToSign = bitcoin.Psbt.fromHex(buyerPsbt.psbtBase64, {
       network: NETWORK,
     });
 
@@ -320,7 +320,7 @@ You have:    ${satToBtc(totalInput)} BTC`);
 
   async verifySellerCancelSignedPsbt(orderCancel: OrderCancel, psbt: Psbt) {
     const cancelPsbt = await this.generateUnsignedSellerCancelPsbt(orderCancel);
-    const psbtToSign = bitcoin.Psbt.fromBase64(cancelPsbt.psbtBase64, {
+    const psbtToSign = bitcoin.Psbt.fromHex(cancelPsbt.psbtBase64, {
       network: NETWORK,
     });
 
@@ -337,9 +337,9 @@ You have:    ${satToBtc(totalInput)} BTC`);
   }
 
   extractSellerBuyerTxFromPsbt(signedOrderInfo: SignedOrderInfo): string {
-    const sellerSignedPsbt = bitcoin.Psbt.fromBase64(
+    const sellerSignedPsbt = bitcoin.Psbt.fromHex(
       signedOrderInfo.sellerPsbt, { network: NETWORK });
-    const buyerSignedPsbt = bitcoin.Psbt.fromBase64(signedOrderInfo.buyerPsbt, {
+    const buyerSignedPsbt = bitcoin.Psbt.fromHex(signedOrderInfo.buyerPsbt, {
       network: NETWORK,
     });
     this.verifyBuyerSignedPsbt(signedOrderInfo.orderInfo, buyerSignedPsbt);
@@ -359,7 +359,7 @@ You have:    ${satToBtc(totalInput)} BTC`);
   extractSellerCancelTxFromPsbt(
     signedOrderCancel: SignedOrderCancel,
   ): string {
-    const sellerSignedPsbt = bitcoin.Psbt.fromBase64(
+    const sellerSignedPsbt = bitcoin.Psbt.fromHex(
       signedOrderCancel.signedPsbt);
     this.verifySellerCancelSignedPsbt(signedOrderCancel.orderCancel,
       sellerSignedPsbt);
