@@ -46,8 +46,13 @@ export class AppController {
   }
 
   @Post('/psbt/verify/seller')
-  verifySignedSellerPsbt(@Body() signedOrderInfo: SignedOrderInfo) {
-     this.arc20PsbtService.verifySignedSellerPsbt(signedOrderInfo);
+  async verifySignedSellerPsbt(@Body() signedOrderInfo: SignedOrderInfo) {
+    try {
+      await this.arc20PsbtService.verifySignedSellerPsbt(signedOrderInfo);
+      return true
+    } catch (e) {
+      return false
+    }
   }
 
   @Post('/psbt/extract/seller_buyer')
